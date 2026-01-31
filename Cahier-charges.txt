@@ -1,0 +1,208 @@
+Cahier des Charges Simplifié - Logiciel de Gestion E-commerce
+1. PRÉSENTATION DU PROJET
+1.1 Contexte
+Gestion d'une entreprise e-commerce de produits skincare avec:
+
+Site Shopify
+Système de paiement différé avec fournisseurs
+Paiement après livraison via société de livraison
+Partenaire qui récupère les produits chez différents fournisseurs pour une même commande
+
+1.2 Objectif du Logiciel
+Système de gestion simplifié pour suivre:
+
+Les commandes et leurs statuts
+Les dettes fournisseurs
+La trésorerie
+Les achats de dollars
+Liste simple des commandes à traiter pour le partenaire
+
+
+2. MODULES FONCTIONNELS
+2.1 MODULE GESTION DES COMMANDES
+Fonctionnalités:
+Enregistrement des commandes
+
+Import automatique depuis Shopify (via API)
+Saisie manuelle possible
+Informations: numéro commande, date, client, produits, quantités, prix de vente
+
+Statuts de commande
+
+En attente de confirmation
+Confirmée
+Envoyée (avec société de livraison)
+Livrée au client
+Paiement reçu de la société de livraison
+Annulée/Retournée
+
+Timeline de chaque commande
+
+Date de commande
+Date de confirmation
+Date d'envoi
+Date de livraison réelle
+
+
+2.2 MODULE GESTION FOURNISSEURS
+Fonctionnalités:
+Liste des fournisseurs
+
+Nom, contact, informations
+
+Compte fournisseur (Solde)
+
+Solde actuel (dette totale)
+Historique des transactions:
+
+Date
+Type (achat produit / paiement)
+Montant
+Solde après transaction
+
+
+
+Opérations
+
+Ajouter un achat (augmente la dette)
+Enregistrer un paiement (diminue la dette)
+Notes/commentaires
+
+
+2.3 MODULE TRÉSORERIE
+Fonctionnalités:
+Argent disponible
+
+Cash en main
+Argent en attente (chez société de livraison)
+Total disponible
+
+Mouvements de trésorerie
+
+Entrées:
+
+Paiements reçus de société de livraison
+Autres revenus
+
+
+Sorties:
+
+Paiements aux fournisseurs
+Achat de devises (dollars)
+Autres dépenses (frais généraux, salaires, etc.)
+
+
+
+Prévisions
+
+Argent attendu dans les 3-7 prochains jours
+Calcul automatique basé sur les commandes en transit
+
+
+2.4 MODULE GESTION DEVISES (DOLLARS)
+Fonctionnalités:
+Achat de dollars
+
+Date d'achat
+Montant en devise locale (DZD)
+Montant en dollars (USD)
+Taux de change
+Coût total
+
+Stock de dollars
+
+Montant disponible
+Utilisation pour paiement Meta Ads
+Historique
+
+
+2.5 MODULE DETTES & CRÉANCES
+Fonctionnalités:
+Vue consolidée
+
+Total des dettes (fournisseurs + autres)
+
+Dettes fournisseurs
+
+Par fournisseur
+
+
+2.6 MODULE TABLEAU DE BORD
+Fonctionnalités:
+Indicateurs clés (KPIs)
+
+Trésorerie disponible immédiatement
+Total dettes
+Total créances
+CA du mois
+Profit/Perte du mois
+
+
+2.7 MODULE "PRODUITS À ACHETER" (POUR LE PARTENAIRE) ⭐ NOUVEAU
+Fonctionnalités:
+Page dédiée "Produits à Acheter"
+
+Accessible rapidement depuis le menu principal
+Optimisée pour mobile (utilisation sur le terrain)
+Mise à jour en temps réel
+SIMPLE: Juste la liste des commandes avec les produits, sans référence aux fournisseurs
+
+Affichage des commandes
+L'écran affiche TOUTES les commandes confirmées et non encore envoyées, listées une par une avec leurs produits:
+┌─────────────────────────────────────┐
+│   📦 Produits à Acheter             │
+│   (5 commandes en attente)          │
+├─────────────────────────────────────┤
+│                                     │
+│  ☐ Commande #45                     │
+│     Client: Mohammed B.             │
+│     Date: 27 Jan 2026               │
+│     ─────────────────────────────   │
+│     • Produit 1                     │
+│     • Produit 2                     │
+│     • Produit 3                     │
+│                                     │
+├─────────────────────────────────────┤
+│                                     │
+│  ☐ Commande #46                     │
+│     Client: Amina K.                │
+│     Date: 27 Jan 2026               │
+│     ─────────────────────────────   │
+│     • Produit 4                     │
+│                                     │
+├─────────────────────────────────────┤
+│                                     │
+│  ☐ Commande #47                     │
+│     Client: Sarah M.                │
+│     Date: 28 Jan 2026               │
+│     ─────────────────────────────   │
+│     • Produit 1                     │
+│     • Produit 5                     │
+│     • Produit 6                     │
+│                                     │
+├─────────────────────────────────────┤
+│                                     │
+│  ☐ Commande #48                     │
+│     Client: Karim B.                │
+│     Date: 28 Jan 2026               │
+│     ─────────────────────────────   │
+│     • Produit 7                     │
+│     • Produit 2                     │
+│                                     │
+├─────────────────────────────────────┤
+│                                     │
+│  ☐ Commande #49                     │
+│     Client: Leila D.                │
+│     Date: 28 Jan 2026               │
+│     ─────────────────────────────   │
+│     • Produit 8                     │
+│                                     │
+└─────────────────────────────────────┘
+Pour chaque commande affichée:
+
+☐ Checkbox pour la sélectionner
+Numéro de commande (ex: #45)
+Nom du client
+Date de la commande
+Liste simple des produits (juste les noms: Produit 1, Produit 2, etc.)
+PAS de mention du fournisseur (le partenaire peut acheter où il veut)

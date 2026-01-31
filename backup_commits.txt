@@ -1,0 +1,4 @@
+98260b2 Résolution du conflit : conservation de la version sécurisée de .env.save
+b2e973d Sécurisation de l'application Laravel : mise à jour du .gitignore, création d'un .env.save sécurisé et documentation des pratiques de déploiement
+5d5c997 Delete .env.save
+5c6e9db first commit
