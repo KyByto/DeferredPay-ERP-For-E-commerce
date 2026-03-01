@@ -1,31 +1,23 @@
 <x-filament-panels::page>
-    {{-- Summary Stats --}}
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div class="p-6 bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700">
-            <h2 class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Produits en Retour</h2>
+            <h2 class="text-sm font-medium text-gray-500 dark:text-gray-400">Produits en stock</h2>
             <p class="text-3xl font-bold text-primary-600 mt-2">{{ $totalCount }}</p>
         </div>
         <div class="p-6 bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700">
-            <h2 class="text-sm font-medium text-gray-500 dark:text-gray-400">Valeur Vente (Théorique)</h2>
-            <p class="text-3xl font-bold text-gray-600 dark:text-gray-300 mt-2">{{ number_format($totalValue, 2) }} DA</p>
-        </div>
-        <div class="p-6 bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700">
-            <h2 class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Investi (Perte Potentielle)</h2>
-            <p class="text-3xl font-bold text-danger-600 mt-2">{{ number_format($totalInvestment, 2) }} DA</p>
+            <h2 class="text-sm font-medium text-gray-500 dark:text-gray-400">Valeur stock</h2>
+            <p class="text-3xl font-bold text-gray-700 dark:text-gray-300 mt-2">{{ number_format($totalValue, 2) }} DZD</p>
         </div>
     </div>
 
-    {{-- Product Table --}}
     <div class="overflow-x-auto bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700">
         <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
             <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                 <tr>
                     <th scope="col" class="px-6 py-3">Produit</th>
-                    <th scope="col" class="px-6 py-3">Source (Commande)</th>
-                    <th scope="col" class="px-6 py-3 text-right">Prix Vente</th>
-                    <th scope="col" class="px-6 py-3 text-center">Coût Achat (Unité)</th>
-                    <th scope="col" class="px-6 py-3 text-center">Quantité</th>
-                    <th scope="col" class="px-6 py-3 text-right">Total Investi</th>
+                    <th scope="col" class="px-6 py-3">Quantite</th>
+                    <th scope="col" class="px-6 py-3">De commandes</th>
+                    <th scope="col" class="px-6 py-3 text-right">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -42,38 +34,98 @@
                                 <span class="text-xs text-gray-500">{{ $item['sku'] }}</span>
                             </div>
                         </td>
+                        <td class="px-6 py-4 font-bold text-gray-900 dark:text-white">
+                            {{ $item['quantity'] }} unite(s)
+                        </td>
                         <td class="px-6 py-4">
-                            <span class="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded dark:bg-gray-700 dark:text-gray-300">
-                                {{ $item['order_name'] }}
+                            <span class="text-xs text-gray-600 dark:text-gray-300">
+                                {{ implode(', ', $item['orders']) }}
                             </span>
                         </td>
                         <td class="px-6 py-4 text-right">
-                            {{ number_format($item['unit_price'], 2) }}
-                        </td>
-                        <td class="px-6 py-4 text-center">
-                            <input 
-                                type="number" 
-                                value="{{ $item['cost_price'] }}"
-                                wire:change="updateCost('{{ addslashes($item['name']) }}', $event.target.value)"
-                                class="w-24 px-2 py-1 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 text-right focus:ring-primary-500 focus:border-primary-500"
-                                placeholder="0.00"
-                            >
-                        </td>
-                        <td class="px-6 py-4 text-center font-bold text-gray-900 dark:text-white">
-                            {{ $item['quantity'] }}
-                        </td>
-                        <td class="px-6 py-4 text-right font-bold text-danger-600">
-                            {{ number_format($item['total_investment'], 2) }} DA
+                            <x-filament::button size="sm" color="success" wire:click="openSellModal('{{ addslashes($item['name']) }}')">
+                                Vendre
+                            </x-filament::button>
+                            <x-filament::button size="sm" color="danger" wire:click="openDeleteModal('{{ addslashes($item['name']) }}')" class="ml-2">
+                                Supprimer
+                            </x-filament::button>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-6 py-8 text-center text-gray-500">
-                            Aucun produit en retour pour le moment.
+                        <td colspan="4" class="px-6 py-8 text-center text-gray-500">
+                            Aucun produit en stock retour pour le moment.
                         </td>
                     </tr>
                 @endforelse
             </tbody>
         </table>
     </div>
+
+    <x-filament::modal id="sell-modal" wire:model="sellModalOpen">
+        <x-slot name="heading">Vendre Produit Retourne</x-slot>
+
+        <div class="space-y-4">
+            <div class="text-sm text-gray-600 dark:text-gray-300">
+                Produit: <span class="font-semibold">{{ $selectedProductName }}</span>
+            </div>
+            <div>
+                <label class="block text-sm text-gray-700 dark:text-gray-300">Quantite ({{ $selectedAvailable }} disponible)</label>
+                <input type="number" min="1" wire:model.defer="sellQuantity" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700">
+            </div>
+            <div>
+                <label class="block text-sm text-gray-700 dark:text-gray-300">Client</label>
+                <input type="text" wire:model.defer="sellClient" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700">
+            </div>
+            <div>
+                <label class="block text-sm text-gray-700 dark:text-gray-300">Tel</label>
+                <input type="text" wire:model.defer="sellPhone" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700">
+            </div>
+            <div>
+                <label class="block text-sm text-gray-700 dark:text-gray-300">Prix (DZD)</label>
+                <input type="number" min="0" step="0.01" wire:model.defer="sellPrice" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700">
+            </div>
+            <div>
+                <label class="block text-sm text-gray-700 dark:text-gray-300">Canal</label>
+                <select wire:model.defer="sellCanal" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700">
+                    <option value="whatsapp">WhatsApp</option>
+                    <option value="facebook">Facebook</option>
+                    <option value="instagram">Instagram</option>
+                    <option value="telephone">Telephone</option>
+                </select>
+            </div>
+        </div>
+
+        <x-slot name="footer">
+            <div class="flex gap-2">
+                <x-filament::button color="gray" wire:click="$set('sellModalOpen', false)">Annuler</x-filament::button>
+                <x-filament::button color="success" wire:click="sellProduct">Creer commande</x-filament::button>
+            </div>
+        </x-slot>
+    </x-filament::modal>
+
+    <x-filament::modal id="delete-modal" wire:model="deleteModalOpen">
+        <x-slot name="heading">Supprimer Produits</x-slot>
+
+        <div class="space-y-4">
+            <div class="text-sm text-gray-600 dark:text-gray-300">
+                Produit: <span class="font-semibold">{{ $selectedProductName }}</span>
+            </div>
+            <div>
+                <label class="block text-sm text-gray-700 dark:text-gray-300">Quantite ({{ $selectedAvailable }} disponible)</label>
+                <input type="number" min="1" wire:model.defer="deleteQuantity" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700">
+            </div>
+            <div>
+                <label class="block text-sm text-gray-700 dark:text-gray-300">Raison</label>
+                <textarea wire:model.defer="deleteReason" rows="3" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700"></textarea>
+            </div>
+        </div>
+
+        <x-slot name="footer">
+            <div class="flex gap-2">
+                <x-filament::button color="gray" wire:click="$set('deleteModalOpen', false)">Annuler</x-filament::button>
+                <x-filament::button color="danger" wire:click="deleteProduct">Supprimer</x-filament::button>
+            </div>
+        </x-slot>
+    </x-filament::modal>
 </x-filament-panels::page>

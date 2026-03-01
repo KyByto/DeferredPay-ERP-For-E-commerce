@@ -13,19 +13,18 @@ class CreateExpense extends CreateRecord
 
     protected function handleRecordCreation(array $data): Model
     {
-        $engine = new TreasuryEngine();
-        
-        if ($data['type'] === TreasuryEngine::TYPE_EXPENSE) {
-            // Using 'Autre' as category default if not provided
-            return $engine->addExpense('Autre', $data['amount'], $data['description']);
-        }
-        
-        if ($data['type'] === TreasuryEngine::TYPE_INCOME) {
-            // Using 'Autre' as source default
-            return $engine->addIncome('Autre', $data['amount'], $data['description']);
+        $engine = new TreasuryEngine;
+
+        $transaction = $engine->addExpense(
+            $data['categorie'],
+            $data['amount'],
+            $data['notes'] ?? ''
+        );
+
+        if (! empty($data['created_at'])) {
+            $transaction->update(['created_at' => $data['created_at']]);
         }
 
-        // Fallback (should not happen given form options)
-        return parent::handleRecordCreation($data);
+        return $transaction;
     }
 }

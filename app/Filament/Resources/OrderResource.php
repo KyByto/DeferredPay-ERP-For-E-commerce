@@ -16,7 +16,10 @@ class OrderResource extends Resource
     protected static ?string $model = Order::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-shopping-bag';
-    protected static ?string $navigationLabel = 'Commandes Shopify';
+
+    protected static ?string $navigationLabel = 'Commandes';
+
+    protected static ?string $navigationGroup = 'Commandes';
 
     public static function canCreate(): bool
     {
@@ -37,6 +40,16 @@ class OrderResource extends Resource
                     Forms\Components\TextInput::make('email')->label('Email Client')->readonly(),
                     Forms\Components\TextInput::make('subtotal_price')->label('Total Produits')->prefix('DZD')->readonly(),
                     Forms\Components\TextInput::make('status')->label('Statut')->readonly(),
+                ])->columns(2),
+
+            Forms\Components\Section::make('Informations Client')
+                ->schema([
+                    Forms\Components\TextInput::make('source')->label('Source')->readonly(),
+                    Forms\Components\TextInput::make('canal_messages')->label('Canal')->readonly(),
+                    Forms\Components\TextInput::make('customer_name')->label('Client')->readonly(),
+                    Forms\Components\TextInput::make('customer_phone')->label('Tel')->readonly(),
+                    Forms\Components\TextInput::make('customer_address')->label('Adresse')->readonly(),
+                    Forms\Components\Textarea::make('notes')->label('Notes')->readonly()->columnSpanFull(),
                 ])->columns(2),
 
             Forms\Components\Section::make('Produits Commandés')
@@ -61,14 +74,14 @@ class OrderResource extends Resource
                                         ->label('Prix Unit.')
                                         ->suffix('DZD')
                                         ->readonly(),
-                                ])
+                                ]),
                         ])
                         ->addable(false)
                         ->deletable(false)
                         ->reorderable(false)
                         ->disableItemMovement()
                         ->columns(1),
-                ])
+                ]),
         ]);
     }
 
@@ -80,9 +93,28 @@ class OrderResource extends Resource
                     ->label('N° Commande')
                     ->searchable()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('email')
-                    ->icon('heroicon-m-envelope')
-                    ->searchable(),
+                Tables\Columns\TextColumn::make('source')
+                    ->label('Source')
+                    ->formatStateUsing(function (?string $state, Order $record): string {
+                        if ($state === 'messages') {
+                            return match ($record->canal_messages) {
+                                'whatsapp' => 'WhatsApp',
+                                'facebook' => 'Facebook',
+                                'instagram' => 'Instagram',
+                                'telephone' => 'Telephone',
+                                default => 'Messages',
+                            };
+                        }
+
+                        return 'Shopify';
+                    })
+                    ->badge()
+                    ->color(fn (?string $state) => $state === 'messages' ? 'warning' : 'info'),
+                Tables\Columns\TextColumn::make('customer_name')
+                    ->label('Client')
+                    ->icon('heroicon-m-user')
+                    ->formatStateUsing(fn (?string $state, Order $record) => $state ?: ($record->email ?: '-'))
+                    ->searchable(['customer_name', 'email']),
                 Tables\Columns\TextColumn::make('subtotal_price')
                     ->label('Prix Produits')
                     ->money('DZD')
@@ -90,6 +122,7 @@ class OrderResource extends Resource
                 Tables\Columns\TextColumn::make('status')
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
+                        'confirmed' => 'info',
                         'paid', 'fulfilled', 'delivered' => 'success',
                         'pending', 'shipping' => 'warning',
                         'returned', 'refunded' => 'danger',
@@ -115,6 +148,7 @@ class OrderResource extends Resource
                 Tables\Filters\SelectFilter::make('status')
                     ->label('Filtrer par Statut')
                     ->options([
+                        'confirmed' => 'Confirmée',
                         'pending' => 'En attente',
                         'paid' => 'Payée',
                         'fulfilled' => 'Traitée (Shopify)',
@@ -123,17 +157,23 @@ class OrderResource extends Resource
                         'returned' => 'Retour',
                         'refunded' => 'Remboursée',
                     ]),
+                Tables\Filters\SelectFilter::make('source')
+                    ->label('Source')
+                    ->options([
+                        'shopify' => 'Shopify',
+                        'messages' => 'Messages',
+                    ]),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
-                
+
                 // Action 1: En Livraison
                 Tables\Actions\Action::make('mark_shipping')
                     ->label('En Livraison')
                     ->icon('heroicon-o-truck')
                     ->color('warning')
                     ->requiresConfirmation()
-                    ->visible(fn (Order $record) => in_array($record->status, ['pending', 'fulfilled']))
+                    ->visible(fn (Order $record) => in_array($record->status, ['confirmed', 'pending', 'fulfilled']))
                     ->action(fn (Order $record) => $record->update(['status' => 'shipping'])),
 
                 // Action 2: Livré (Final)
@@ -147,7 +187,7 @@ class OrderResource extends Resource
                         $record->update(['status' => 'delivered']);
 
                         // Add money to Societe
-                        $treasury = new \App\Services\TreasuryEngine();
+                        $treasury = new \App\Services\TreasuryEngine;
                         $treasury->addDeliveryCollection(
                             amount: $record->total_price, // Use Total (Product + Shipping)
                             description: "Commande {$record->name} livrée"
@@ -166,7 +206,10 @@ class OrderResource extends Resource
                     ->color('danger')
                     ->requiresConfirmation()
                     ->visible(fn (Order $record) => $record->status === 'shipping')
-                    ->action(fn (Order $record) => $record->update(['status' => 'returned'])),
+                    ->action(function (Order $record) {
+                        $record->update(['status' => 'returned']);
+                        $record->addReturnedProducts();
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -175,7 +218,7 @@ class OrderResource extends Resource
                         ->label('Générer PDF Stock')
                         ->icon('heroicon-o-printer')
                         ->action(function (\Illuminate\Database\Eloquent\Collection $records) {
-                            return (new \App\Filament\Actions\Order\GenerateRestockPdf())($records);
+                            return (new \App\Filament\Actions\Order\GenerateRestockPdf)($records);
                         })
                         ->deselectRecordsAfterCompletion(),
                 ]),

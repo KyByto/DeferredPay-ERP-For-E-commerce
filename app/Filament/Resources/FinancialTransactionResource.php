@@ -5,7 +5,6 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\FinancialTransactionResource\Pages;
 use App\Models\FinancialTransaction;
 use App\Services\TreasuryEngine;
-use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -17,8 +16,12 @@ class FinancialTransactionResource extends Resource
     protected static ?string $model = FinancialTransaction::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list';
+
     protected static ?string $navigationLabel = 'Journal Financier';
+
     protected static ?string $modelLabel = 'Transaction';
+
+    protected static ?string $navigationGroup = 'Tresorerie';
 
     public static function canCreate(): bool
     {
@@ -29,7 +32,7 @@ class FinancialTransactionResource extends Resource
     {
         return false;
     }
-    
+
     public static function canDelete(Model $record): bool
     {
         return false;
@@ -56,13 +59,19 @@ class FinancialTransactionResource extends Resource
                     ->sortable(),
                 Tables\Columns\TextColumn::make('source_type')
                     ->label('Source')
-                    ->formatStateUsing(fn ($state, FinancialTransaction $record) => $record->source ? class_basename($record->source) . " #{$record->source->id}" : ($record->source_type ?? '-')),
+                    ->formatStateUsing(fn ($state, FinancialTransaction $record) => $record->source ? class_basename($record->source)." #{$record->source->id}" : ($record->source_type ?? '-')),
                 Tables\Columns\TextColumn::make('destination_type')
                     ->label('Destination')
-                    ->formatStateUsing(fn ($state, FinancialTransaction $record) => $record->destination ? class_basename($record->destination) . " #{$record->destination->id}" : ($record->destination_type ?? '-')),
+                    ->formatStateUsing(fn ($state, FinancialTransaction $record) => $record->destination ? class_basename($record->destination)." #{$record->destination->id}" : ($record->destination_type ?? '-')),
                 Tables\Columns\TextColumn::make('description')
                     ->limit(50)
                     ->searchable(),
+                Tables\Columns\TextColumn::make('categorie')
+                    ->label('Categorie')
+                    ->formatStateUsing(fn (?string $state) => \App\Models\FinancialTransaction::CATEGORY_OPTIONS[$state] ?? $state)
+                    ->limit(30),
+                Tables\Columns\TextColumn::make('notes')
+                    ->limit(40),
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([

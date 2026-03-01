@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\OrderResource\Pages;
 
+use App\Filament\Pages\CreateMessageOrder;
 use App\Filament\Resources\OrderResource;
 use App\Jobs\SyncShopifyOrders;
 use Filament\Actions;
@@ -15,13 +16,18 @@ class ListOrders extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
+            Actions\Action::make('create_message_order')
+                ->label('Nouvelle (Messages)')
+                ->icon('heroicon-o-chat-bubble-left-right')
+                ->color('warning')
+                ->url(CreateMessageOrder::getUrl()),
             Actions\Action::make('sync_shopify')
                 ->label('Synchroniser Shopify')
                 ->icon('heroicon-o-arrow-path')
                 ->action(function () {
                     try {
                         SyncShopifyOrders::dispatchSync(); // Run synchronously for UI feedback in this prototype
-                        
+
                         Notification::make()
                             ->title('Synchronisation terminée')
                             ->success()

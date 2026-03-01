@@ -4,18 +4,23 @@ namespace App\Services;
 
 use App\Models\FinancialTransaction;
 use App\Models\Supplier;
-use Illuminate\Support\Facades\DB;
 
 class TreasuryEngine
 {
     public const TYPE_DEBT = 'debt';
+
     public const TYPE_PAYMENT = 'payment';
+
     public const TYPE_EXPENSE = 'expense';
+
     public const TYPE_INCOME = 'income';
+
     public const TYPE_TRANSFER = 'transfer';
 
     public const ACCOUNT_CAISSE = 'Caisse';
+
     public const ACCOUNT_SOCIETE = 'Societe'; // Cash held by Delivery
+
     public const ACCOUNT_LIABILITY = 'Dettes'; // Virtual account for liabilities
 
     public function addDebt(Supplier $supplier, float $amount, string $description): FinancialTransaction
@@ -26,7 +31,7 @@ class TreasuryEngine
             'amount' => $amount,
             'source_type' => Supplier::class,
             'source_id' => $supplier->id,
-            'destination_type' => self::ACCOUNT_LIABILITY, 
+            'destination_type' => self::ACCOUNT_LIABILITY,
             'destination_id' => null,
             'description' => $description,
         ]);
@@ -36,9 +41,9 @@ class TreasuryEngine
     {
         // Strict check: Cannot pay what we don't have.
         if ($this->getCashBalance() < $amount) {
-            throw new \Exception("Solde de caisse insuffisant pour ce paiement.");
+            throw new \Exception('Solde de caisse insuffisant pour ce paiement.');
         }
-        
+
         return FinancialTransaction::create([
             'type' => self::TYPE_PAYMENT,
             'amount' => $amount,
@@ -65,11 +70,13 @@ class TreasuryEngine
         ]);
     }
 
-    public function addExpense(string $category, float $amount, string $description): FinancialTransaction
+    public function addExpense(string $category, float $amount, string $notes = ''): FinancialTransaction
     {
         if ($this->getCashBalance() < $amount) {
-            throw new \Exception("Solde de caisse insuffisant pour cette dépense.");
+            throw new \Exception('Solde de caisse insuffisant pour cette dépense.');
         }
+
+        $label = \App\Models\FinancialTransaction::CATEGORY_OPTIONS[$category] ?? $category;
 
         return FinancialTransaction::create([
             'type' => self::TYPE_EXPENSE,
@@ -78,7 +85,9 @@ class TreasuryEngine
             'source_id' => null,
             'destination_type' => 'External',
             'destination_id' => null,
-            'description' => "$category: $description",
+            'description' => "Sortie: $label",
+            'categorie' => $category,
+            'notes' => $notes,
         ]);
     }
 
@@ -125,27 +134,27 @@ class TreasuryEngine
     {
         $incoming = FinancialTransaction::where('destination_type', self::ACCOUNT_CAISSE)->sum('amount');
         $outgoing = FinancialTransaction::where('source_type', self::ACCOUNT_CAISSE)->sum('amount');
-        
+
         return $incoming - $outgoing;
     }
 
     public function getSocieteBalance(): float
     {
         // Societe de Livraison
-        // Incoming: Debts (We owe supplier, but where does the money come from? 
-        // Wait, "Debt" transaction: Source=Supplier, Dest=Societe. 
+        // Incoming: Debts (We owe supplier, but where does the money come from?
+        // Wait, "Debt" transaction: Source=Supplier, Dest=Societe.
         // This means Societe 'Received' value (goods).
         // But usually "Societe Balance" refers to Cash held by the Delivery Guy.
         // This implies "Money collected from customers".
         // The Debt logic I implemented (Source=Supplier, Dest=Societe) tracks what we owe.
         // It doesn't track Cash held by Societe.
-        
+
         // Let's assume there are other transactions for "Delivery Collection".
         // For now, let's just implement the basic sum based on what we have.
-        
+
         $incoming = FinancialTransaction::where('destination_type', self::ACCOUNT_SOCIETE)->sum('amount');
         $outgoing = FinancialTransaction::where('source_type', self::ACCOUNT_SOCIETE)->sum('amount');
-        
+
         return $incoming - $outgoing;
     }
 }

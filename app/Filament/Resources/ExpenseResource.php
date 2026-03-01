@@ -17,32 +17,39 @@ class ExpenseResource extends Resource
     protected static ?string $model = FinancialTransaction::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-banknotes';
-    
-    protected static ?string $navigationLabel = 'Journal de Caisse';
-    protected static ?string $modelLabel = 'Frais ou Entrée';
+
+    protected static ?string $navigationLabel = 'Sorties d\'Argent';
+
+    protected static ?string $modelLabel = 'Sortie d\'Argent';
+
+    protected static ?string $navigationGroup = 'Tresorerie';
 
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->whereIn('type', [TreasuryEngine::TYPE_EXPENSE, TreasuryEngine::TYPE_INCOME]);
+            ->where('type', TreasuryEngine::TYPE_EXPENSE);
     }
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\Select::make('type')
-                    ->options([
-                        TreasuryEngine::TYPE_EXPENSE => 'Sortie (Frais)',
-                        TreasuryEngine::TYPE_INCOME => 'Entrée (Cash)',
-                    ])
+                Forms\Components\Hidden::make('type')
+                    ->default(TreasuryEngine::TYPE_EXPENSE),
+                Forms\Components\DatePicker::make('created_at')
+                    ->label('Date')
+                    ->default(now())
                     ->required(),
                 Forms\Components\TextInput::make('amount')
                     ->numeric()
                     ->required()
                     ->label('Montant'),
-                Forms\Components\Textarea::make('description')
-                    ->required()
+                Forms\Components\Select::make('categorie')
+                    ->label('Categorie')
+                    ->options(\App\Models\FinancialTransaction::CATEGORY_OPTIONS)
+                    ->required(),
+                Forms\Components\Textarea::make('notes')
+                    ->label('Notes')
                     ->columnSpanFull(),
             ]);
     }
@@ -59,12 +66,15 @@ class ExpenseResource extends Resource
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
                         TreasuryEngine::TYPE_EXPENSE => 'danger',
-                        TreasuryEngine::TYPE_INCOME => 'success',
                     }),
                 Tables\Columns\TextColumn::make('amount')
                     ->money('DZD')
                     ->label('Montant'),
-                Tables\Columns\TextColumn::make('description')
+                Tables\Columns\TextColumn::make('categorie')
+                    ->label('Categorie')
+                    ->formatStateUsing(fn (?string $state) => \App\Models\FinancialTransaction::CATEGORY_OPTIONS[$state] ?? $state)
+                    ->limit(30),
+                Tables\Columns\TextColumn::make('notes')
                     ->limit(50),
             ])
             ->defaultSort('created_at', 'desc')

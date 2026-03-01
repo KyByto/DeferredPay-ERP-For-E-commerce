@@ -3,21 +3,22 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\SupplierResource\Pages;
-use App\Filament\Resources\SupplierResource\RelationManagers;
 use App\Models\Supplier;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class SupplierResource extends Resource
 {
     protected static ?string $model = Supplier::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+
+    protected static ?string $navigationLabel = 'Fournisseurs';
+
+    protected static ?string $navigationGroup = 'Fournisseurs';
 
     public static function form(Form $form): Form
     {
@@ -67,9 +68,9 @@ class SupplierResource extends Resource
                             ->required(),
                     ])
                     ->action(function (Supplier $record, array $data) {
-                        $engine = new \App\Services\TreasuryEngine();
+                        $engine = new \App\Services\TreasuryEngine;
                         $engine->addDebt($record, $data['amount'], $data['description']);
-                        
+
                         \Filament\Notifications\Notification::make()
                             ->title('Dette ajoutée')
                             ->success()
@@ -86,20 +87,21 @@ class SupplierResource extends Resource
                             ->label('Montant'),
                     ])
                     ->action(function (Supplier $record, array $data) {
-                        $engine = new \App\Services\TreasuryEngine();
+                        $engine = new \App\Services\TreasuryEngine;
                         $balance = $engine->getCashBalance();
-                        
+
                         if ($data['amount'] > $balance) {
                             \Filament\Notifications\Notification::make()
                                 ->title('Solde Caisse Insuffisant')
                                 ->body("Vous avez {$balance} DZD en caisse.")
                                 ->danger()
                                 ->send();
+
                             return;
                         }
 
                         $engine->paySupplier($record, $data['amount']);
-                        
+
                         \Filament\Notifications\Notification::make()
                             ->title('Paiement enregistré')
                             ->success()
