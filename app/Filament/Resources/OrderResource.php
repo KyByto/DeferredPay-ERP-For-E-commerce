@@ -208,7 +208,7 @@ class OrderResource extends Resource
                     ->visible(fn (Order $record) => $record->status === 'shipping')
                     ->action(function (Order $record) {
                         $record->update(['status' => 'returned']);
-                        $record->addReturnedProducts();
+                        $record->initReturnedSold();
                     }),
             ])
             ->bulkActions([

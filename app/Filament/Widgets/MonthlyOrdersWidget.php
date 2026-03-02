@@ -3,7 +3,6 @@
 namespace App\Filament\Widgets;
 
 use App\Models\Order;
-use App\Models\ReturnedProduct;
 use Carbon\Carbon;
 use Filament\Widgets\Widget;
 
@@ -56,9 +55,17 @@ class MonthlyOrdersWidget extends Widget
         }
 
         $totalProducts = $shopifyProducts + $messagesProducts;
-        $returnedProductsCount = (int) ReturnedProduct::whereHas('order', function ($query) use ($start, $end) {
-            $query->whereBetween('order_date', [$start, $end]);
-        })->sum('quantity');
+
+        // Count returned products from orders with status=returned in the date range
+        $returnedOrders = (clone $baseQuery)->where('status', 'returned')->get();
+        $returnedProductsCount = 0;
+
+        foreach ($returnedOrders as $order) {
+            $items = $order->items ?? [];
+            foreach ($items as $item) {
+                $returnedProductsCount += (int) ($item['quantity'] ?? 0);
+            }
+        }
 
         $returnsRate = $totalProducts > 0 ? ($returnedProductsCount / $totalProducts) * 100 : 0;
 

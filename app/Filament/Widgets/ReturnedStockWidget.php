@@ -3,7 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Filament\Pages\ReturnedProducts;
-use App\Models\ReturnedProduct;
+use App\Models\Order;
 use Filament\Widgets\Widget;
 
 class ReturnedStockWidget extends Widget
@@ -12,9 +12,27 @@ class ReturnedStockWidget extends Widget
 
     protected function getViewData(): array
     {
-        $items = ReturnedProduct::where('status', 'en_stock')->get();
-        $totalCount = (int) $items->sum('quantity');
-        $totalValue = (float) $items->sum(fn ($item) => $item->quantity * $item->unit_price);
+        $totalCount = 0;
+        $totalValue = 0;
+
+        $returnedOrders = Order::where('status', 'returned')->get();
+
+        foreach ($returnedOrders as $order) {
+            $items = $order->items ?? [];
+            $returnedSold = $order->returned_sold ?? [];
+
+            foreach ($items as $index => $item) {
+                $totalQty = (int) ($item['quantity'] ?? 0);
+                $sold = (int) ($returnedSold[$index]['sold'] ?? 0);
+                $removed = (int) ($returnedSold[$index]['removed'] ?? 0);
+                $available = max(0, $totalQty - $sold - $removed);
+
+                if ($available > 0) {
+                    $totalCount += $available;
+                    $totalValue += $available * (float) ($item['price'] ?? 0);
+                }
+            }
+        }
 
         return [
             'totalCount' => $totalCount,

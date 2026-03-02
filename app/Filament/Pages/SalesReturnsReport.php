@@ -4,7 +4,6 @@ namespace App\Filament\Pages;
 
 use App\Models\FinancialTransaction;
 use App\Models\Order;
-use App\Models\ReturnedProduct;
 use App\Services\TreasuryEngine;
 use Carbon\Carbon;
 use Filament\Pages\Page;
@@ -63,7 +62,7 @@ class SalesReturnsReport extends Page
             $end = $now->copy()->endOfMonth();
         } else {
             // "all" ou toute valeur inconnue : toute la base
-            $minDate = \App\Models\Order::min('order_date');
+            $minDate = Order::min('order_date');
             $start = $minDate ? Carbon::parse($minDate)->startOfDay() : $now->copy()->subYear()->startOfDay();
             $end = $now->copy()->endOfDay();
         }
@@ -96,9 +95,41 @@ class SalesReturnsReport extends Page
             }
         });
 
-        $returnedUnits = ReturnedProduct::whereBetween('created_at', [$from, $to])->sum('quantity');
-        $currentStock = ReturnedProduct::where('status', 'en_stock')->sum('quantity');
-        $resoldUnits = ReturnedProduct::where('status', 'vendu')->whereBetween('created_at', [$from, $to])->sum('quantity');
+        // Count returned units and resold units from returned orders in the period
+        $returnedOrdersData = (clone $orders)->where('status', 'returned')->get();
+        $returnedUnits = 0;
+        $resoldUnits = 0;
+        $currentStock = 0;
+
+        foreach ($returnedOrdersData as $order) {
+            $items = $order->items ?? [];
+            $returnedSold = $order->returned_sold ?? [];
+
+            foreach ($items as $index => $item) {
+                $qty = (int) ($item['quantity'] ?? 0);
+                $sold = (int) ($returnedSold[$index]['sold'] ?? 0);
+                $removed = (int) ($returnedSold[$index]['removed'] ?? 0);
+
+                $returnedUnits += $qty;
+                $resoldUnits += $sold;
+                $currentStock += max(0, $qty - $sold - $removed);
+            }
+        }
+
+        // Also compute currentStock across ALL returned orders (not just the period)
+        $allReturnedOrders = Order::where('status', 'returned')->get();
+        $currentStock = 0;
+        foreach ($allReturnedOrders as $order) {
+            $items = $order->items ?? [];
+            $returnedSold = $order->returned_sold ?? [];
+
+            foreach ($items as $index => $item) {
+                $qty = (int) ($item['quantity'] ?? 0);
+                $sold = (int) ($returnedSold[$index]['sold'] ?? 0);
+                $removed = (int) ($returnedSold[$index]['removed'] ?? 0);
+                $currentStock += max(0, $qty - $sold - $removed);
+            }
+        }
 
         $grossRevenue = (clone $orders)->where('status', 'delivered')->sum('total_price');
         $returnsValue = (clone $orders)->where('status', 'returned')->sum('total_price');

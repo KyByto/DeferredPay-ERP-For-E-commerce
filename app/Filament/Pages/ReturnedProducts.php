@@ -3,7 +3,6 @@
 namespace App\Filament\Pages;
 
 use App\Models\Order;
-use App\Models\ReturnedProduct;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 
@@ -35,6 +34,9 @@ class ReturnedProducts extends Page
 
     public float $selectedUnitPrice = 0;
 
+    // Tracks which order+item pairs are selected for sell/delete
+    public array $selectedSources = [];
+
     public int $sellQuantity = 1;
 
     public float $sellPrice = 0;
@@ -54,39 +56,74 @@ class ReturnedProducts extends Page
         $this->calculateData();
     }
 
+    /**
+     * Build the returned items list directly from orders with status=returned.
+     * Groups by product name, calculates available stock (quantity - sold - removed).
+     */
     public function calculateData(): void
     {
         $this->returnedItems = [];
         $this->totalValue = 0;
         $this->totalCount = 0;
-        $returnedProducts = ReturnedProduct::with('order')
-            ->where('status', 'en_stock')
-            ->get();
 
-        $grouped = $returnedProducts->groupBy('product_name');
+        $returnedOrders = Order::where('status', 'returned')->get();
 
-        foreach ($grouped as $productName => $items) {
-            $quantity = $items->sum('quantity');
-            $unitPrice = (float) ($items->first()->unit_price ?? 0);
-            $orderNames = $items->pluck('order.name')->filter()->unique()->values()->all();
+        // Collect all items with available stock, grouped by product name
+        $grouped = [];
 
-            $this->returnedItems[] = [
-                'name' => $productName,
-                'sku' => $items->first()->sku ?? '-',
-                'image_url' => $items->first()->image_url,
-                'quantity' => $quantity,
-                'unit_price' => $unitPrice,
-                'orders' => $orderNames,
-            ];
+        foreach ($returnedOrders as $order) {
+            $items = $order->items ?? [];
+            $returnedSold = $order->returned_sold ?? [];
 
-            $this->totalCount += $quantity;
-            $this->totalValue += $quantity * $unitPrice;
+            foreach ($items as $index => $item) {
+                $totalQty = (int) ($item['quantity'] ?? 0);
+                $sold = (int) ($returnedSold[$index]['sold'] ?? 0);
+                $removed = (int) ($returnedSold[$index]['removed'] ?? 0);
+                $available = max(0, $totalQty - $sold - $removed);
+
+                if ($available <= 0) {
+                    continue;
+                }
+
+                $name = $item['name'] ?? 'Inconnu';
+
+                if (! isset($grouped[$name])) {
+                    $grouped[$name] = [
+                        'name' => $name,
+                        'sku' => $item['sku'] ?? '-',
+                        'image_url' => $item['image_url'] ?? null,
+                        'quantity' => 0,
+                        'unit_price' => (float) ($item['price'] ?? 0),
+                        'orders' => [],
+                        // Track sources: which order_id + item_index have available stock
+                        'sources' => [],
+                    ];
+                }
+
+                $grouped[$name]['quantity'] += $available;
+
+                if ($order->name && ! in_array($order->name, $grouped[$name]['orders'])) {
+                    $grouped[$name]['orders'][] = $order->name;
+                }
+
+                $grouped[$name]['sources'][] = [
+                    'order_id' => $order->id,
+                    'item_index' => $index,
+                    'available' => $available,
+                ];
+            }
+        }
+
+        foreach ($grouped as $item) {
+            $this->returnedItems[] = $item;
+            $this->totalCount += $item['quantity'];
+            $this->totalValue += $item['quantity'] * $item['unit_price'];
         }
     }
 
-    public function openSellModal(string $productName): void
+    public function openSellModal(int $index): void
     {
-        $item = collect($this->returnedItems)->firstWhere('name', $productName);
+        $item = $this->returnedItems[$index] ?? null;
 
         if (! $item) {
             return;
@@ -95,6 +132,7 @@ class ReturnedProducts extends Page
         $this->selectedProductName = $item['name'];
         $this->selectedAvailable = $item['quantity'];
         $this->selectedUnitPrice = $item['unit_price'];
+        $this->selectedSources = $item['sources'];
         $this->sellQuantity = 1;
         $this->sellPrice = $item['unit_price'];
         $this->sellClient = '';
@@ -103,9 +141,9 @@ class ReturnedProducts extends Page
         $this->sellModalOpen = true;
     }
 
-    public function openDeleteModal(string $productName): void
+    public function openDeleteModal(int $index): void
     {
-        $item = collect($this->returnedItems)->firstWhere('name', $productName);
+        $item = $this->returnedItems[$index] ?? null;
 
         if (! $item) {
             return;
@@ -113,6 +151,7 @@ class ReturnedProducts extends Page
 
         $this->selectedProductName = $item['name'];
         $this->selectedAvailable = $item['quantity'];
+        $this->selectedSources = $item['sources'];
         $this->deleteQuantity = $item['quantity'];
         $this->deleteReason = '';
         $this->deleteModalOpen = true;
@@ -147,6 +186,7 @@ class ReturnedProducts extends Page
         $subtotal = $this->sellQuantity * $this->sellPrice;
 
         try {
+            // Create the sale order
             $order = Order::create([
                 'shopify_id' => 'msg-'.\Illuminate\Support\Str::uuid(),
                 'name' => $this->generateMessageOrderName(),
@@ -163,8 +203,10 @@ class ReturnedProducts extends Page
                 'customer_phone' => $this->sellPhone,
             ]);
 
-            $this->decreaseReturnedStock($this->selectedProductName, $this->sellQuantity, 'vendu', "Commande {$order->name}");
+            // Mark sold quantities on the source returned orders (FIFO)
+            $this->decreaseReturnedStock($this->selectedSources, $this->sellQuantity, 'sold');
 
+            // Record income
             $treasury = new \App\Services\TreasuryEngine;
             $treasury->addDeliveryCollection(
                 amount: $order->total_price,
@@ -197,7 +239,7 @@ class ReturnedProducts extends Page
             return;
         }
 
-        $this->decreaseReturnedStock($this->selectedProductName, $this->deleteQuantity, 'supprime', $this->deleteReason);
+        $this->decreaseReturnedStock($this->selectedSources, $this->deleteQuantity, 'removed');
 
         $this->deleteModalOpen = false;
         $this->calculateData();
@@ -208,53 +250,38 @@ class ReturnedProducts extends Page
             ->send();
     }
 
-    private function decreaseReturnedStock(string $productName, int $quantity, string $status, ?string $notes = null): void
+    /**
+     * Decrease returned stock by marking items as sold or removed on their source orders.
+     * Uses FIFO across the source orders.
+     *
+     * @param  array  $sources  Array of ['order_id' => int, 'item_index' => int, 'available' => int]
+     * @param  int  $quantity  Total quantity to consume
+     * @param  string  $type  'sold' or 'removed'
+     */
+    private function decreaseReturnedStock(array $sources, int $quantity, string $type): void
     {
         $remaining = $quantity;
 
-        $records = ReturnedProduct::where('status', 'en_stock')
-            ->where('product_name', $productName)
-            ->orderBy('id')
-            ->get();
-
-        foreach ($records as $record) {
+        foreach ($sources as $source) {
             if ($remaining <= 0) {
                 break;
             }
 
-            if ($record->quantity <= $remaining) {
-                $remaining -= $record->quantity;
-
-                if ($status === 'vendu') {
-                    $record->delete();
-                } else {
-                    $record->update([
-                        'status' => $status,
-                        'notes' => $notes,
-                    ]);
-                }
-
+            $order = Order::find($source['order_id']);
+            if (! $order) {
                 continue;
             }
 
-            $record->update([
-                'quantity' => $record->quantity - $remaining,
-            ]);
+            $available = $source['available'];
+            $consume = min($remaining, $available);
 
-            if ($status !== 'vendu') {
-                ReturnedProduct::create([
-                    'order_id' => $record->order_id,
-                    'product_name' => $record->product_name,
-                    'sku' => $record->sku,
-                    'image_url' => $record->image_url,
-                    'unit_price' => $record->unit_price,
-                    'quantity' => $remaining,
-                    'status' => $status,
-                    'notes' => $notes,
-                ]);
+            if ($type === 'sold') {
+                $order->markReturnedItemSold($source['item_index'], $consume);
+            } else {
+                $order->markReturnedItemRemoved($source['item_index'], $consume);
             }
 
-            $remaining = 0;
+            $remaining -= $consume;
         }
     }
 

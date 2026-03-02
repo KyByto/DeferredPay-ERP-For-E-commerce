@@ -21,7 +21,7 @@
                 </tr>
             </thead>
             <tbody>
-                @forelse($returnedItems as $item)
+                @forelse($returnedItems as $index => $item)
                     <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
                         <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white flex items-center gap-3">
                             @if($item['image_url'])
@@ -43,10 +43,10 @@
                             </span>
                         </td>
                         <td class="px-6 py-4 text-right">
-                            <x-filament::button size="sm" color="success" wire:click="openSellModal('{{ addslashes($item['name']) }}')">
+                            <x-filament::button size="sm" color="success" wire:click="openSellModal({{ $index }})">
                                 Vendre
                             </x-filament::button>
-                            <x-filament::button size="sm" color="danger" wire:click="openDeleteModal('{{ addslashes($item['name']) }}')" class="ml-2">
+                            <x-filament::button size="sm" color="danger" wire:click="openDeleteModal({{ $index }})" class="ml-2">
                                 Supprimer
                             </x-filament::button>
                         </td>
