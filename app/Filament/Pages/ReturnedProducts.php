@@ -28,20 +28,8 @@ class ReturnedProducts extends Page
 
     public int $selectedAvailable = 0;
 
-    public float $selectedUnitPrice = 0;
-
-    // Tracks which order+item pairs are selected for sell/delete
+    // Tracks which order+item pairs are selected for delete
     public array $selectedSources = [];
-
-    public int $sellQuantity = 1;
-
-    public float $sellPrice = 0;
-
-    public string $sellClient = '';
-
-    public string $sellPhone = '';
-
-    public string $sellCanal = 'whatsapp';
 
     public int $deleteQuantity = 1;
 
@@ -91,7 +79,6 @@ class ReturnedProducts extends Page
                         'quantity' => 0,
                         'unit_price' => (float) ($item['price'] ?? 0),
                         'orders' => [],
-                        // Track sources: which order_id + item_index have available stock
                         'sources' => [],
                     ];
                 }
@@ -117,26 +104,6 @@ class ReturnedProducts extends Page
         }
     }
 
-    public function openSellModal(int $index): void
-    {
-        $item = $this->returnedItems[$index] ?? null;
-
-        if (! $item) {
-            return;
-        }
-
-        $this->selectedProductName = $item['name'];
-        $this->selectedAvailable = $item['quantity'];
-        $this->selectedUnitPrice = $item['unit_price'];
-        $this->selectedSources = $item['sources'];
-        $this->sellQuantity = 1;
-        $this->sellPrice = $item['unit_price'];
-        $this->sellClient = '';
-        $this->sellPhone = '';
-        $this->sellCanal = 'whatsapp';
-        $this->dispatch('open-modal', id: 'sell-modal');
-    }
-
     public function openDeleteModal(int $index): void
     {
         $item = $this->returnedItems[$index] ?? null;
@@ -151,77 +118,6 @@ class ReturnedProducts extends Page
         $this->deleteQuantity = $item['quantity'];
         $this->deleteReason = '';
         $this->dispatch('open-modal', id: 'delete-modal');
-    }
-
-    public function sellProduct(): void
-    {
-        if ($this->sellQuantity <= 0 || $this->sellQuantity > $this->selectedAvailable) {
-            Notification::make()
-                ->title('Quantite invalide')
-                ->danger()
-                ->send();
-
-            return;
-        }
-
-        if ($this->sellPrice <= 0) {
-            Notification::make()
-                ->title('Prix invalide')
-                ->danger()
-                ->send();
-
-            return;
-        }
-
-        $items = [[
-            'name' => $this->selectedProductName,
-            'quantity' => $this->sellQuantity,
-            'price' => $this->sellPrice,
-        ]];
-
-        $subtotal = $this->sellQuantity * $this->sellPrice;
-
-        try {
-            // Create the sale order
-            $order = Order::create([
-                'shopify_id' => 'msg-'.\Illuminate\Support\Str::uuid(),
-                'name' => $this->generateMessageOrderName(),
-                'email' => null,
-                'total_price' => $subtotal,
-                'subtotal_price' => $subtotal,
-                'shipping_price' => 0,
-                'status' => 'delivered',
-                'items' => $items,
-                'order_date' => now(),
-                'source' => 'messages',
-                'canal_messages' => $this->sellCanal,
-                'customer_name' => $this->sellClient,
-                'customer_phone' => $this->sellPhone,
-            ]);
-
-            // Mark sold quantities on the source returned orders (FIFO)
-            $this->decreaseReturnedStock($this->selectedSources, $this->sellQuantity, 'sold');
-
-            // Record income
-            $treasury = new \App\Services\TreasuryEngine;
-            $treasury->addDeliveryCollection(
-                amount: $order->total_price,
-                description: "Commande {$order->name} livree"
-            );
-
-            $this->dispatch('close-modal', id: 'sell-modal');
-            $this->calculateData();
-
-            Notification::make()
-                ->title('Produit vendu et encaissé')
-                ->success()
-                ->send();
-        } catch (\Exception $e) {
-            Notification::make()
-                ->title('Erreur lors de la vente: '.$e->getMessage())
-                ->danger()
-                ->send();
-        }
     }
 
     public function deleteProduct(): void
@@ -244,7 +140,7 @@ class ReturnedProducts extends Page
             return;
         }
 
-        $this->decreaseReturnedStock($this->selectedSources, $this->deleteQuantity, 'removed');
+        $this->decreaseReturnedStock($this->selectedSources, $this->deleteQuantity);
 
         $this->dispatch('close-modal', id: 'delete-modal');
         $this->calculateData();
@@ -256,14 +152,10 @@ class ReturnedProducts extends Page
     }
 
     /**
-     * Decrease returned stock by marking items as sold or removed on their source orders.
+     * Decrease returned stock by marking items as removed on their source orders.
      * Uses FIFO across the source orders.
-     *
-     * @param  array  $sources  Array of ['order_id' => int, 'item_index' => int, 'available' => int]
-     * @param  int  $quantity  Total quantity to consume
-     * @param  string  $type  'sold' or 'removed'
      */
-    private function decreaseReturnedStock(array $sources, int $quantity, string $type): void
+    private function decreaseReturnedStock(array $sources, int $quantity): void
     {
         $remaining = $quantity;
 
@@ -280,29 +172,9 @@ class ReturnedProducts extends Page
             $available = $source['available'];
             $consume = min($remaining, $available);
 
-            if ($type === 'sold') {
-                $order->markReturnedItemSold($source['item_index'], $consume);
-            } else {
-                $order->markReturnedItemRemoved($source['item_index'], $consume);
-            }
+            $order->markReturnedItemRemoved($source['item_index'], $consume);
 
             $remaining -= $consume;
         }
-    }
-
-    private function generateMessageOrderName(): string
-    {
-        $lastName = Order::where('source', 'messages')
-            ->where('name', 'like', 'MSG-%')
-            ->orderByDesc('id')
-            ->value('name');
-
-        $next = 1;
-
-        if ($lastName && preg_match('/MSG-(\d+)/', $lastName, $matches)) {
-            $next = (int) $matches[1] + 1;
-        }
-
-        return 'MSG-'.str_pad((string) $next, 4, '0', STR_PAD_LEFT);
     }
 }

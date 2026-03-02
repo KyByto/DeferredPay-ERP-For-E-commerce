@@ -67,22 +67,6 @@ class Order extends Model
     }
 
     /**
-     * Mark some quantity of a returned item as sold.
-     */
-    public function markReturnedItemSold(int $itemIndex, int $quantity): void
-    {
-        $returnedSold = $this->returned_sold ?? [];
-
-        if (! isset($returnedSold[$itemIndex])) {
-            $returnedSold[$itemIndex] = ['sold' => 0, 'removed' => 0];
-        }
-
-        $returnedSold[$itemIndex]['sold'] = ($returnedSold[$itemIndex]['sold'] ?? 0) + $quantity;
-
-        $this->update(['returned_sold' => $returnedSold]);
-    }
-
-    /**
      * Mark some quantity of a returned item as removed/deleted.
      */
     public function markReturnedItemRemoved(int $itemIndex, int $quantity): void

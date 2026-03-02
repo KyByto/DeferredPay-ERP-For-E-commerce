@@ -43,10 +43,7 @@
                             </span>
                         </td>
                         <td class="px-6 py-4 text-right">
-                            <x-filament::button size="sm" color="success" wire:click="openSellModal({{ $index }})">
-                                Vendre
-                            </x-filament::button>
-                            <x-filament::button size="sm" color="danger" wire:click="openDeleteModal({{ $index }})" class="ml-2">
+                            <x-filament::button size="sm" color="danger" wire:click="openDeleteModal({{ $index }})">
                                 Supprimer
                             </x-filament::button>
                         </td>
@@ -61,48 +58,6 @@
             </tbody>
         </table>
     </div>
-
-    <x-filament::modal id="sell-modal">
-        <x-slot name="heading">Vendre Produit Retourne</x-slot>
-
-        <div class="space-y-4">
-            <div class="text-sm text-gray-600 dark:text-gray-300">
-                Produit: <span class="font-semibold">{{ $selectedProductName }}</span>
-            </div>
-            <div>
-                <label class="block text-sm text-gray-700 dark:text-gray-300">Quantite ({{ $selectedAvailable }} disponible)</label>
-                <input type="number" min="1" wire:model.live="sellQuantity" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700">
-            </div>
-            <div>
-                <label class="block text-sm text-gray-700 dark:text-gray-300">Client</label>
-                <input type="text" wire:model.live="sellClient" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700">
-            </div>
-            <div>
-                <label class="block text-sm text-gray-700 dark:text-gray-300">Tel</label>
-                <input type="text" wire:model.live="sellPhone" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700">
-            </div>
-            <div>
-                <label class="block text-sm text-gray-700 dark:text-gray-300">Prix (DZD)</label>
-                <input type="number" min="0" step="0.01" wire:model.live="sellPrice" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700">
-            </div>
-            <div>
-                <label class="block text-sm text-gray-700 dark:text-gray-300">Canal</label>
-                <select wire:model.live="sellCanal" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700">
-                    <option value="whatsapp">WhatsApp</option>
-                    <option value="facebook">Facebook</option>
-                    <option value="instagram">Instagram</option>
-                    <option value="telephone">Telephone</option>
-                </select>
-            </div>
-        </div>
-
-        <x-slot name="footer">
-            <div class="flex gap-2">
-                <x-filament::button color="gray" x-on:click="$dispatch('close-modal', { id: 'sell-modal' })">Annuler</x-filament::button>
-                <x-filament::button color="success" wire:click="sellProduct">Creer commande</x-filament::button>
-            </div>
-        </x-slot>
-    </x-filament::modal>
 
     <x-filament::modal id="delete-modal">
         <x-slot name="heading">Supprimer Produits</x-slot>
