@@ -64,9 +64,26 @@ class SyncShopifyOrders implements ShouldQueue
                 // Let's extract numeric ID for safety if column is numeric.
                 $shopifyId = basename($node['id']);
 
-                Order::updateOrCreate(
-                    ['shopify_id' => $shopifyId],
-                    [
+                $existing = Order::where('shopify_id', $shopifyId)->first();
+
+                if ($existing) {
+                    // Order already exists: only update fields that come from Shopify
+                    // and do NOT touch internal state fields managed manually
+                    // (status, canal_messages, customer_name, customer_phone,
+                    //  customer_address, notes, returned_sold)
+                    $existing->update([
+                        'name' => $node['name'],
+                        'email' => $node['email'] ?? '',
+                        'total_price' => $node['totalPriceSet']['shopMoney']['amount'] ?? 0,
+                        'subtotal_price' => $node['currentSubtotalPriceSet']['shopMoney']['amount'] ?? 0,
+                        'shipping_price' => $node['totalShippingPriceSet']['shopMoney']['amount'] ?? 0,
+                        'items' => $items,
+                        'order_date' => Carbon::parse($node['createdAt']),
+                    ]);
+                } else {
+                    // New order: insert with all fields including the initial Shopify status
+                    Order::create([
+                        'shopify_id' => $shopifyId,
                         'name' => $node['name'],
                         'email' => $node['email'] ?? '',
                         'total_price' => $node['totalPriceSet']['shopMoney']['amount'] ?? 0,
@@ -76,8 +93,8 @@ class SyncShopifyOrders implements ShouldQueue
                         'items' => $items,
                         'order_date' => Carbon::parse($node['createdAt']),
                         'source' => 'shopify',
-                    ]
-                );
+                    ]);
+                }
             }
 
             Log::info('Shopify Sync Completed. '.count($ordersEdges).' orders processed.');
