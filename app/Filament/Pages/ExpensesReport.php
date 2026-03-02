@@ -19,7 +19,7 @@ class ExpensesReport extends Page
 
     protected static string $view = 'filament.pages.expenses-report';
 
-    public string $period = 'this_month';
+    public string $period = 'all';
 
     public ?string $fromDate = null;
 
@@ -35,7 +35,7 @@ class ExpensesReport extends Page
 
     public function mount(): void
     {
-        $this->setPeriodDates('this_month');
+        $this->setPeriodDates('all');
         $this->calculateData();
     }
 
@@ -68,9 +68,13 @@ class ExpensesReport extends Page
         if ($period === 'last_month') {
             $start = $now->copy()->subMonthNoOverflow()->startOfMonth();
             $end = $start->copy()->endOfMonth();
-        } else {
+        } elseif ($period === 'this_month') {
             $start = $now->copy()->startOfMonth();
             $end = $now->copy()->endOfMonth();
+        } else {
+            $minDate = FinancialTransaction::where('type', TreasuryEngine::TYPE_EXPENSE)->min('created_at');
+            $start = $minDate ? Carbon::parse($minDate)->startOfDay() : $now->copy()->subYear()->startOfDay();
+            $end = $now->copy()->endOfDay();
         }
 
         $this->fromDate = $start->toDateString();
@@ -94,15 +98,28 @@ class ExpensesReport extends Page
         $this->totalExpenses = (float) $transactions->sum('amount');
 
         $this->summary = [];
+        $categorized = 0;
         foreach (FinancialTransaction::CATEGORY_OPTIONS as $key => $label) {
             $amount = (float) $transactions->where('categorie', $key)->sum('amount');
             $percentage = $this->totalExpenses > 0 ? ($amount / $this->totalExpenses) * 100 : 0;
+            $categorized += $amount;
 
             $this->summary[] = [
                 'key' => $key,
                 'label' => $label,
                 'amount' => $amount,
                 'percentage' => $percentage,
+            ];
+        }
+
+        // Transactions sans catégorie (null ou inconnue)
+        $uncategorizedAmount = (float) $transactions->filter(fn ($t) => ! array_key_exists($t->categorie, FinancialTransaction::CATEGORY_OPTIONS))->sum('amount');
+        if ($uncategorizedAmount > 0) {
+            $this->summary[] = [
+                'key' => 'autres',
+                'label' => 'Autres / Non catégorisé',
+                'amount' => $uncategorizedAmount,
+                'percentage' => $this->totalExpenses > 0 ? ($uncategorizedAmount / $this->totalExpenses) * 100 : 0,
             ];
         }
 
