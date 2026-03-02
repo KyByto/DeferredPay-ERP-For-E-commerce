@@ -71,23 +71,23 @@
             </div>
             <div>
                 <label class="block text-sm text-gray-700 dark:text-gray-300">Quantite ({{ $selectedAvailable }} disponible)</label>
-                <input type="number" min="1" wire:model.defer="sellQuantity" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700">
+                <input type="number" min="1" wire:model.live="sellQuantity" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700">
             </div>
             <div>
                 <label class="block text-sm text-gray-700 dark:text-gray-300">Client</label>
-                <input type="text" wire:model.defer="sellClient" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700">
+                <input type="text" wire:model.live="sellClient" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700">
             </div>
             <div>
                 <label class="block text-sm text-gray-700 dark:text-gray-300">Tel</label>
-                <input type="text" wire:model.defer="sellPhone" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700">
+                <input type="text" wire:model.live="sellPhone" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700">
             </div>
             <div>
                 <label class="block text-sm text-gray-700 dark:text-gray-300">Prix (DZD)</label>
-                <input type="number" min="0" step="0.01" wire:model.defer="sellPrice" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700">
+                <input type="number" min="0" step="0.01" wire:model.live="sellPrice" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700">
             </div>
             <div>
                 <label class="block text-sm text-gray-700 dark:text-gray-300">Canal</label>
-                <select wire:model.defer="sellCanal" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700">
+                <select wire:model.live="sellCanal" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700">
                     <option value="whatsapp">WhatsApp</option>
                     <option value="facebook">Facebook</option>
                     <option value="instagram">Instagram</option>
@@ -113,11 +113,11 @@
             </div>
             <div>
                 <label class="block text-sm text-gray-700 dark:text-gray-300">Quantite ({{ $selectedAvailable }} disponible)</label>
-                <input type="number" min="1" wire:model.defer="deleteQuantity" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700">
+                <input type="number" min="1" wire:model.live="deleteQuantity" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700">
             </div>
             <div>
                 <label class="block text-sm text-gray-700 dark:text-gray-300">Raison</label>
-                <textarea wire:model.defer="deleteReason" rows="3" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700"></textarea>
+                <textarea wire:model.live="deleteReason" rows="3" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700"></textarea>
             </div>
         </div>
 
