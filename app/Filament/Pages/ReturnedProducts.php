@@ -24,10 +24,6 @@ class ReturnedProducts extends Page
 
     public int $totalCount = 0;
 
-    public bool $sellModalOpen = false;
-
-    public bool $deleteModalOpen = false;
-
     public string $selectedProductName = '';
 
     public int $selectedAvailable = 0;
@@ -138,7 +134,7 @@ class ReturnedProducts extends Page
         $this->sellClient = '';
         $this->sellPhone = '';
         $this->sellCanal = 'whatsapp';
-        $this->sellModalOpen = true;
+        $this->dispatch('open-modal', id: 'sell-modal');
     }
 
     public function openDeleteModal(int $index): void
@@ -154,7 +150,7 @@ class ReturnedProducts extends Page
         $this->selectedSources = $item['sources'];
         $this->deleteQuantity = $item['quantity'];
         $this->deleteReason = '';
-        $this->deleteModalOpen = true;
+        $this->dispatch('open-modal', id: 'delete-modal');
     }
 
     public function sellProduct(): void
@@ -213,7 +209,7 @@ class ReturnedProducts extends Page
                 description: "Commande {$order->name} livree"
             );
 
-            $this->sellModalOpen = false;
+            $this->dispatch('close-modal', id: 'sell-modal');
             $this->calculateData();
 
             Notification::make()
@@ -222,7 +218,7 @@ class ReturnedProducts extends Page
                 ->send();
         } catch (\Exception $e) {
             Notification::make()
-                ->title('Erreur lors de la vente')
+                ->title('Erreur lors de la vente: '.$e->getMessage())
                 ->danger()
                 ->send();
         }
@@ -239,9 +235,18 @@ class ReturnedProducts extends Page
             return;
         }
 
+        if (empty($this->selectedSources)) {
+            Notification::make()
+                ->title('Erreur: aucune source selectionnee')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
         $this->decreaseReturnedStock($this->selectedSources, $this->deleteQuantity, 'removed');
 
-        $this->deleteModalOpen = false;
+        $this->dispatch('close-modal', id: 'delete-modal');
         $this->calculateData();
 
         Notification::make()

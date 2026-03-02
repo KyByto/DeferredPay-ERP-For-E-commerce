@@ -62,7 +62,7 @@
         </table>
     </div>
 
-    <x-filament::modal id="sell-modal" wire:model="sellModalOpen">
+    <x-filament::modal id="sell-modal">
         <x-slot name="heading">Vendre Produit Retourne</x-slot>
 
         <div class="space-y-4">
@@ -98,13 +98,13 @@
 
         <x-slot name="footer">
             <div class="flex gap-2">
-                <x-filament::button color="gray" wire:click="$set('sellModalOpen', false)">Annuler</x-filament::button>
+                <x-filament::button color="gray" x-on:click="$dispatch('close-modal', { id: 'sell-modal' })">Annuler</x-filament::button>
                 <x-filament::button color="success" wire:click="sellProduct">Creer commande</x-filament::button>
             </div>
         </x-slot>
     </x-filament::modal>
 
-    <x-filament::modal id="delete-modal" wire:model="deleteModalOpen">
+    <x-filament::modal id="delete-modal">
         <x-slot name="heading">Supprimer Produits</x-slot>
 
         <div class="space-y-4">
@@ -123,7 +123,7 @@
 
         <x-slot name="footer">
             <div class="flex gap-2">
-                <x-filament::button color="gray" wire:click="$set('deleteModalOpen', false)">Annuler</x-filament::button>
+                <x-filament::button color="gray" x-on:click="$dispatch('close-modal', { id: 'delete-modal' })">Annuler</x-filament::button>
                 <x-filament::button color="danger" wire:click="deleteProduct">Supprimer</x-filament::button>
             </div>
         </x-slot>
