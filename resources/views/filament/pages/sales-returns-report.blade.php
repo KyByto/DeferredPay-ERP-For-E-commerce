@@ -3,7 +3,7 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
                 <label class="block text-sm text-gray-600 dark:text-gray-300">Periode</label>
-                <select wire:model="period" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700">
+                <select wire:model.live="period" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700">
                     <option value="all">Tout</option>
                     <option value="this_month">Ce mois</option>
                     <option value="last_month">Mois dernier</option>
@@ -11,11 +11,11 @@
             </div>
             <div>
                 <label class="block text-sm text-gray-600 dark:text-gray-300">Du</label>
-                <input type="date" wire:model="fromDate" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700">
+                <input type="date" wire:model.live="fromDate" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700">
             </div>
             <div>
                 <label class="block text-sm text-gray-600 dark:text-gray-300">Au</label>
-                <input type="date" wire:model="toDate" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700">
+                <input type="date" wire:model.live="toDate" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700">
             </div>
         </div>
     </div>
