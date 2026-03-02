@@ -9,8 +9,11 @@ use Illuminate\Support\Facades\Log;
 class ShopifyService
 {
     protected string $baseUrl;
+
     protected ?string $initialToken;
+
     protected ?string $clientId;
+
     protected ?string $clientSecret;
 
     public function __construct()
@@ -43,8 +46,9 @@ class ShopifyService
     {
         Log::info('ShopifyService: Attempting to refresh access token...');
 
-        if (!$this->clientId || !$this->clientSecret) {
+        if (! $this->clientId || ! $this->clientSecret) {
             Log::error('ShopifyService: Missing Client ID or Secret for token refresh.');
+
             return null;
         }
 
@@ -60,19 +64,20 @@ class ShopifyService
                 $data = $response->json();
                 $newToken = $data['access_token'] ?? null;
                 // Tokens usually last a while, but let's cache it safely for 24h or use 'expires_in' if provided
-                $expiresIn = $data['expires_in'] ?? 86400; 
+                $expiresIn = $data['expires_in'] ?? 86400;
 
                 if ($newToken) {
                     Cache::put('shopify_access_token', $newToken, $expiresIn);
                     Log::info('ShopifyService: Token refreshed successfully.');
+
                     return $newToken;
                 }
             }
-            
+
             Log::error('ShopifyService: Failed to refresh token.', ['response' => $response->body()]);
 
         } catch (\Exception $e) {
-            Log::error('ShopifyService: Exception during token refresh: ' . $e->getMessage());
+            Log::error('ShopifyService: Exception during token refresh: '.$e->getMessage());
         }
 
         return null;
@@ -83,7 +88,7 @@ class ShopifyService
      */
     protected function sendGraphQLRequest(string $query, int $retryCount = 0): array
     {
-        if (!$this->baseUrl) {
+        if (! $this->baseUrl) {
             return ['errors' => [['message' => 'Shopify URL not configured']]];
         }
 
@@ -93,15 +98,15 @@ class ShopifyService
             'X-Shopify-Access-Token' => $token,
             'Content-Type' => 'application/json',
         ])->post("{$this->baseUrl}/admin/api/2024-01/graphql.json", [
-            'query' => $query
+            'query' => $query,
         ]);
 
         // Handle 401 Unauthorized (Expired Token)
         if ($response->status() === 401 && $retryCount < 1) {
             Log::warning('ShopifyService: 401 Unauthorized. Triggering token refresh.');
-            
+
             $newToken = $this->refreshAccessToken();
-            
+
             if ($newToken) {
                 // Retry the request ONCE with the new token
                 return $this->sendGraphQLRequest($query, $retryCount + 1);
@@ -116,22 +121,25 @@ class ShopifyService
         return $response->json();
     }
 
-    public function getConfirmedOrders(?string $lastSyncDate = null): array
+    public function getConfirmedOrders(?string $startDate = null, ?string $endDate = null): array
     {
         $allOrders = [];
         $cursor = null;
         $hasNextPage = true;
 
         // Base search query: We now look for FULFILLED (Traité) orders regardless of payment status
-        $searchQuery = "fulfillment_status:fulfilled";
-        if ($lastSyncDate) {
-            $searchQuery .= " AND created_at:>'{$lastSyncDate}'";
+        $searchQuery = 'fulfillment_status:fulfilled';
+        if ($startDate) {
+            $searchQuery .= " AND updated_at:>='{$startDate}'";
+        }
+        if ($endDate) {
+            $searchQuery .= " AND updated_at:<='{$endDate}'";
         }
 
         while ($hasNextPage) {
             // Build GraphQL Query with dynamic cursor and search filter
-            $afterClause = $cursor ? ", after: \"{$cursor}\"" : "";
-            
+            $afterClause = $cursor ? ", after: \"{$cursor}\"" : '';
+
             $query = <<<GRAPHQL
             {
                 orders(first: 50, query: "{$searchQuery}"{$afterClause}) {

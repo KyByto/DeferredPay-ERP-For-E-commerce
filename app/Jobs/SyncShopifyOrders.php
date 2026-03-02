@@ -32,17 +32,13 @@ class SyncShopifyOrders implements ShouldQueue
         Log::info('Starting Shopify Sync...');
 
         try {
-            // Get the date of the last imported order to optimize the query
-            $lastOrderDate = Order::max('order_date');
-            $lastSyncDate = $lastOrderDate ? Carbon::parse($lastOrderDate)->toIso8601String() : null;
+            // Sync by updated time to avoid missing late confirmations
+            $startDate = Carbon::now()->subWeek()->toIso8601String();
+            $endDate = Carbon::now()->toIso8601String();
 
-            if ($lastSyncDate) {
-                Log::info("Fetching Shopify orders created after: $lastSyncDate");
-            } else {
-                Log::info('Performing full initial sync of Shopify orders.');
-            }
+            Log::info("Fetching Shopify orders updated between: $startDate and $endDate");
 
-            $ordersEdges = $shopify->getConfirmedOrders($lastSyncDate);
+            $ordersEdges = $shopify->getConfirmedOrders($startDate, $endDate);
 
             foreach ($ordersEdges as $edge) {
                 $node = $edge['node'];

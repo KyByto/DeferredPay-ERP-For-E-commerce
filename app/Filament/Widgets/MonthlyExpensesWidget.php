@@ -21,7 +21,7 @@ class MonthlyExpensesWidget extends Widget
 
         $total = (float) $transactions->sum('amount');
         $publicite = (float) $transactions->where('categorie', 'publicite')->sum('amount');
-        $personnel = (float) $transactions->whereIn('categorie', ['depense_vous', 'depense_partner'])->sum('amount');
+        $personnel = (float) $transactions->whereIn('categorie', ['depense_aramis', 'depense_marouane'])->sum('amount');
         $dollars = (float) $transactions->where('categorie', 'achat_dollars')->sum('amount');
 
         return [

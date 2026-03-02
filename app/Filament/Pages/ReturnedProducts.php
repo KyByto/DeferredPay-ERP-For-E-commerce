@@ -129,6 +129,15 @@ class ReturnedProducts extends Page
             return;
         }
 
+        if ($this->sellPrice <= 0) {
+            Notification::make()
+                ->title('Prix invalide')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
         $items = [[
             'name' => $this->selectedProductName,
             'quantity' => $this->sellQuantity,
@@ -137,31 +146,44 @@ class ReturnedProducts extends Page
 
         $subtotal = $this->sellQuantity * $this->sellPrice;
 
-        $order = Order::create([
-            'shopify_id' => 'msg-'.\Illuminate\Support\Str::uuid(),
-            'name' => $this->generateMessageOrderName(),
-            'email' => null,
-            'total_price' => $subtotal,
-            'subtotal_price' => $subtotal,
-            'shipping_price' => 0,
-            'status' => 'confirmed',
-            'items' => $items,
-            'order_date' => now(),
-            'source' => 'messages',
-            'canal_messages' => $this->sellCanal,
-            'customer_name' => $this->sellClient,
-            'customer_phone' => $this->sellPhone,
-        ]);
+        try {
+            $order = Order::create([
+                'shopify_id' => 'msg-'.\Illuminate\Support\Str::uuid(),
+                'name' => $this->generateMessageOrderName(),
+                'email' => null,
+                'total_price' => $subtotal,
+                'subtotal_price' => $subtotal,
+                'shipping_price' => 0,
+                'status' => 'delivered',
+                'items' => $items,
+                'order_date' => now(),
+                'source' => 'messages',
+                'canal_messages' => $this->sellCanal,
+                'customer_name' => $this->sellClient,
+                'customer_phone' => $this->sellPhone,
+            ]);
 
-        $this->decreaseReturnedStock($this->selectedProductName, $this->sellQuantity, 'vendu', "Commande {$order->name}");
+            $this->decreaseReturnedStock($this->selectedProductName, $this->sellQuantity, 'vendu', "Commande {$order->name}");
 
-        $this->sellModalOpen = false;
-        $this->calculateData();
+            $treasury = new \App\Services\TreasuryEngine;
+            $treasury->addDeliveryCollection(
+                amount: $order->total_price,
+                description: "Commande {$order->name} livree"
+            );
 
-        Notification::make()
-            ->title('Commande creee depuis stock')
-            ->success()
-            ->send();
+            $this->sellModalOpen = false;
+            $this->calculateData();
+
+            Notification::make()
+                ->title('Produit vendu et encaissé')
+                ->success()
+                ->send();
+        } catch (\Exception $e) {
+            Notification::make()
+                ->title('Erreur lors de la vente')
+                ->danger()
+                ->send();
+        }
     }
 
     public function deleteProduct(): void

@@ -4,6 +4,7 @@
             <div>
                 <label class="block text-sm text-gray-600 dark:text-gray-300">Periode</label>
                 <select wire:model="period" class="w-full mt-1 rounded-md border-gray-300 dark:bg-gray-800 dark:border-gray-700">
+                    <option value="all">Tout</option>
                     <option value="this_month">Ce mois</option>
                     <option value="last_month">Mois dernier</option>
                 </select>

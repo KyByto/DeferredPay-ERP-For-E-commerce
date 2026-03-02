@@ -46,7 +46,10 @@ class ExpenseResource extends Resource
                     ->label('Montant'),
                 Forms\Components\Select::make('categorie')
                     ->label('Categorie')
-                    ->options(\App\Models\FinancialTransaction::CATEGORY_OPTIONS)
+                    ->options(array_diff_key(
+                        \App\Models\FinancialTransaction::CATEGORY_OPTIONS,
+                        ['publicite' => true]
+                    ))
                     ->required(),
                 Forms\Components\Textarea::make('notes')
                     ->label('Notes')

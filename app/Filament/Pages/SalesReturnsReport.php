@@ -21,7 +21,7 @@ class SalesReturnsReport extends Page
 
     protected static string $view = 'filament.pages.sales-returns-report';
 
-    public string $period = 'this_month';
+    public string $period = 'all';
 
     public ?string $fromDate = null;
 
@@ -31,7 +31,7 @@ class SalesReturnsReport extends Page
 
     public function mount(): void
     {
-        $this->setPeriodDates('this_month');
+        $this->setPeriodDates('all');
         $this->calculateReport();
     }
 
@@ -58,9 +58,14 @@ class SalesReturnsReport extends Page
         if ($period === 'last_month') {
             $start = $now->copy()->subMonthNoOverflow()->startOfMonth();
             $end = $start->copy()->endOfMonth();
-        } else {
+        } elseif ($period === 'this_month') {
             $start = $now->copy()->startOfMonth();
             $end = $now->copy()->endOfMonth();
+        } else {
+            // "all" ou toute valeur inconnue : toute la base
+            $minDate = \App\Models\Order::min('order_date');
+            $start = $minDate ? Carbon::parse($minDate)->startOfDay() : $now->copy()->subYear()->startOfDay();
+            $end = $now->copy()->endOfDay();
         }
 
         $this->fromDate = $start->toDateString();
