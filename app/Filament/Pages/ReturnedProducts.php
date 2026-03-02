@@ -223,12 +223,16 @@ class ReturnedProducts extends Page
             }
 
             if ($record->quantity <= $remaining) {
-                $record->update([
-                    'status' => $status,
-                    'notes' => $notes,
-                ]);
-
                 $remaining -= $record->quantity;
+
+                if ($status === 'vendu') {
+                    $record->delete();
+                } else {
+                    $record->update([
+                        'status' => $status,
+                        'notes' => $notes,
+                    ]);
+                }
 
                 continue;
             }
@@ -237,16 +241,18 @@ class ReturnedProducts extends Page
                 'quantity' => $record->quantity - $remaining,
             ]);
 
-            ReturnedProduct::create([
-                'order_id' => $record->order_id,
-                'product_name' => $record->product_name,
-                'sku' => $record->sku,
-                'image_url' => $record->image_url,
-                'unit_price' => $record->unit_price,
-                'quantity' => $remaining,
-                'status' => $status,
-                'notes' => $notes,
-            ]);
+            if ($status !== 'vendu') {
+                ReturnedProduct::create([
+                    'order_id' => $record->order_id,
+                    'product_name' => $record->product_name,
+                    'sku' => $record->sku,
+                    'image_url' => $record->image_url,
+                    'unit_price' => $record->unit_price,
+                    'quantity' => $remaining,
+                    'status' => $status,
+                    'notes' => $notes,
+                ]);
+            }
 
             $remaining = 0;
         }
